@@ -2,14 +2,24 @@
 
 > NODE JS модуль, который позволит принимать оплату с помощью платёжного агрегатора [payok.io](https://payok.io/)
 
-<center>
-  <img src="logo.png" alt="PAYOK" /> 
-</center>
+<div align='center'>
+  <img src="assets/logo.png" alt="PAYOK" /> 
+</div>
 
-[![Downloads](https://img.shields.io/npm/dt/payok.svg)](https://npmjs.com/package/payok)
-[![last commit](https://img.shields.io/github/last-commit/kravetsone/payok.svg)](https://github.com/kravetsone/payok)
-[![GitHub](https://img.shields.io/github/stars/kravetsone/payok.svg)](https://github.com/kravetsone/payok)
-[![npm](https://img.shields.io/npm/v/payok.svg)](https://npmjs.com/package/payok)
+<div align='center'>
+  <a href='https://github.com/kravetsone/payok/tree/main/examples'><b>examples</b></a>
+  <span>&nbsp;•&nbsp;</span>
+  <a href='#changelog'><b>changelog</b></a>
+</div>
+<br>
+
+<div align='center'>
+  <img src="https://img.shields.io/npm/dt/payok.svg" alt="Downloads" href="https://npmjs.com/package/payok" /> 
+  <img src="https://img.shields.io/npm/dm/payok.svg" alt="Downloads/month" href="https://npmjs.com/package/payok" /> 
+  <img src="https://img.shields.io/github/last-commit/kravetsone/payok.svg" alt="last commit" href="https://github.com/kravetsone/payok" /> 
+  <img src="https://img.shields.io/github/stars/kravetsone/payok.svg" alt="GitHub" href="https://github.com/kravetsone/payok" /> 
+  <img src="https://img.shields.io/npm/v/payok.svg" alt="npm" href="https://npmjs.com/package/payok" /> 
+</div>
 
 ## 📦 Установка
 
@@ -50,17 +60,15 @@ const payok = new PAYOK({
 ---
 
 ```js
-payok
+const link = payok
     .getPaymentLink({
         amount: 10,
         desc: "Описание вашего товара",
         success_url: `https://github.com/kravetsone/payok`,
         email: "email@gmail.ru",
-        id: 123456,
-    })
-    .then((bill) => {
-        console.log(bill); // { payUrl: "https://payok.io/pay?...", paymentId: "98dd5-51e1-a0644"}
+        custom: {id: 123456},
     });
+console.log(link); // { payUrl: "https://payok.io/pay?...", paymentId: "98dd5-51e1-a0644"}
 ```
 
 | Параметр    | Тип    | Описание                                                                | Обязательный |
@@ -71,7 +79,7 @@ payok
 | email       | string | Email пользователя                                                      | -            |
 | method      | string | [Способ оплаты](https://payok.io/cabinet/documentation/doc_methods.php) | -            |
 | lang        | string | Язык интерфейса (`RU`/`ENG`)                                            | -            |
-| \*          | any    | Любой ваш параметр, который придёт к вам на вебхук в случае оплаты      | -            |
+| custom.\*   | any    | Любой ваш параметр, который придёт к вам на вебхук в случае оплаты      | -            |
 
 ## ⚙ [Создание вебхука (обработчик успешной оплаты)](https://payok.io/cabinet/documentation/doc_sendback.php)
 
@@ -80,29 +88,33 @@ payok
 > 🚧 Параметр sign, приходящий вместе с платежём, уже проверен библиотекой, так что с ним вам взаимодействовать не потребуется.
 
 ```js
-payok.createWebhook(3000, (payment) => {
-    console.log(payment);
-    /*{
-        payment_id: '51387-77a3-d3724',
-        shop: '2000',
-        amount: '10',
-        profit: '10',
-        desc: 'Описание вашего товара',
-        currency: 'RUB',
-        currency_amount: '10.69',
-        sign: 'b7453a35683171d235dfb13a16b61f41',
-        email: 'email@gmail.ru',
-        date: '11.06.2022 12:13:15',
-        method: 'Qiwi', 
-        custom: { id: '123456' } 
-    }*/
+// Запускаем сам веб-сервер
+payok.createWebhook(3000, "/amazing-secret-url-path");
+// Слушаем обработанное событие пополнения
+payok.events.on("payment", (payment) => {
+        console.log(payment);
+        /*{
+            payment_id: '51387-77a3-d3724',
+            shop: '2000',
+            amount: '10',
+            profit: '10',
+            desc: 'Описание вашего товара',
+            currency: 'RUB',
+            currency_amount: '10.69',
+            sign: 'b7453a35683171d235dfb13a16b61f41',
+            email: 'email@gmail.ru',
+            date: '11.06.2022 12:13:15',
+            method: 'Qiwi', 
+            custom: { id: '123456' } 
+        }*/
+    });
 });
 ```
 
 | Параметр | Тип      | Описание                                         | Обязательный |
 | -------- | -------- | ------------------------------------------------ | ------------ |
 | port     | number   | Порт на котором вы хотите раскрыть вебхук        | +            |
-| handler  | function | Функция, которая выполниться при успешной оплате | +            |
+| path     | string   | Путь по которому будет доступен вебхук           | -            |
 
 ### 💰 [Получение баланса](https://payok.io/cabinet/documentation/doc_api_balance)
 
@@ -121,7 +133,7 @@ payok.api.getBalance().then((res) => {
 ---
 
 ```js
-payok.api.getTransaction({ offset: 1 }).then((res) => {
+payok.api.getTransactions({ offset: 1 }).then((res) => {
     console.log(res);
     /*{
         {
@@ -234,6 +246,8 @@ payok.api
 > Если нашли ошибку, то создайте [ISSUES](https://github.com/kravetsone/payok/issues/new)
 
 ## Changelog:
+
+**1.0.4** - Breaking Change. Поменяли систему событий. Добавили примеры и множество более скромных деяних. [Подробнее](https://github.com/kravetsone/payok/releases/tag/payok%401.0.4)
 
 **1.0.3** - Поддержка `TypeScript`. Рефакторинг кода. Мелкие изменения в `Readme`. Зависимость `node-fetch` заменена на `axios`.
 

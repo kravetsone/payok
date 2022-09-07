@@ -1,26 +1,44 @@
-export interface IgetPaymentLink {
-    amount: number,
-    payment?: string,
+export type Currency = "RUB" | "UAH" | "USD" | "EUR" | "RUB2"
+export type PaymentMethod = "cd" | "qw" | "ya" | "wm" | "pr" | "pm" | "ad" | "mg" | "bt" | "th" | "lt" | "dg"
+export type PayoutMethod = "card" | "card_uah" | "card_foreign" | "qiwi" | "yoomoney" | "payeer" | "advcash" | "perfect_money" | "webmoney" | "bitcoin" | "litecoin" | "tether" | "tron" | "dogecoin"
+
+export interface IGetPaymentLink {
+    amount: string,
     desc: string,
-    currency?: "RUB" | "UAH" | "USD" | "EUR" | "RUB2",
+    payment?: string,
+    currency?: Currency,
     email?: string,
     success_url?: string,
-    method?: "cd" | "qw" | "ya" | "wm" | "pr" | "pm" | "ad" | "mg" | "bt" | "th" | "lt" | "dg",
+    method?: PaymentMethod,
     lang?: "RU" | "EN",
-    custom?: any
-};
-export interface IgetTransaction {
+    custom: Record<string, any>
+}
+export interface IGetTransaction {
     payment?: string,
     offset?: number,
 }
-export interface IgetPayout {
+export interface IGetPayout {
     payment_id?: string,
     offset?: number,
 }
-export interface IcreatePayout {
-    amount: number,
-    method: "card" | "card_uah" | "card_foreign" | "qiwi" | "yoomoney" | "payeer" | "advcash" | "perfect_money" | "webmoney" | "bitcoin" | "litecoin" | "tether" | "tron" | "dogecoin",
+export interface ICreatePayout {
+    amount: string,
+    method: PayoutMethod,
     reciever: string,
     comission_type: "balance" | "payment",
     webhook_url?: string,
+}
+export interface IPaymentHandler {
+    payment_id: string,
+    shop: number,
+    amount: string,
+    profit: string,
+    desc: string,
+    currency: Currency,
+    currency_amount: string,
+    sign: string,
+    email: string,
+    date: string,
+    method: string,
+    custom: any
 }

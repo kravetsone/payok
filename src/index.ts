@@ -2,8 +2,10 @@ import Fastify from "fastify";
 const fastify = Fastify();
 import { createHash, randomBytes } from "crypto";
 import { stringify, parse } from "qs";
-import { IgetPaymentLink } from "./types";
+import { IGetPaymentLink, IPaymentHandler } from "./types";
 import { API } from "./api";
+import EventEmitter from "events";
+class Emitter extends EventEmitter { };
 export class PAYOK {
     apiId: number;
     apiKey: string;
@@ -11,6 +13,7 @@ export class PAYOK {
     shop: number;
     cache: Map<any, any>;
     api: API;
+    events: Emitter;
     /**
      *
      * @param {number} params.apiId Идентификатор вашего API ключа.
@@ -29,6 +32,7 @@ export class PAYOK {
         this.apiKey = params.apiKey;
         this.secretKey = params.secretKey;
         this.shop = params.shop;
+        this.events = new Emitter();
         this.cache = new Map();
         this.api = new API(params);
     }
@@ -51,29 +55,30 @@ export class PAYOK {
      * Создание ссылки на форму оплаты
      * @param {float} params.amount Сумма заказа. Обязателен.
      * @param {string} params.desc Название или описание товара. Обязателен.
+     * @param {any} params.custom.* Ваш параметр, который вы хотите передать в уведомлении (любое количество).
      * @param {string} params.payment Номер заказа, уникальный в вашей системе (если не укажите, то он заполнится автоматически), до 16 символов. (a-z0-9-_)
      * @param {string} params.currency Валюта (RUB - Рубли, UAH - Гривны, USD - Доллары, EUR - Евро, RUB2 - Рубли, но альтернативный шлюз). По умолчанию RUB.
      * @param {string} params.email Электронна почта покупателя.
      * @param {string} params.success_url Ссылка для переадресации после оплаты.
      * @param {string} params.method Способ оплаты
      * @param {string} params.lang Язык интерфейса. RU или EN (Если не указан, берется язык браузера)
-     * @param {any} params.custom Ваш параметр, который вы хотите передать в уведомлении (любое количество).
      *
      *
      */
-    async getPaymentLink(params: IgetPaymentLink): Promise<{ payUrl: string; paymentId?: string; }> {
+    getPaymentLink(params: IGetPaymentLink) {
+        const paymentId = params.payment || generateUUID();
         return {
-            payUrl: `https://payok.io/pay?${stringify(Object.assign({ sign: this.generateSignature(params, "paymentLink"), shop: this.shop, payment: generateUUID() }, params))}`,
-            paymentId: params.payment,
+            payUrl: `https://payok.io/pay?${stringify({ sign: this.generateSignature(Object.assign({ payment: paymentId }, params), "paymentLink"), shop: this.shop, payment: paymentId, amount: params.amount, desc: params.desc, currency: params.currency, email: params.email, success_url: params.success_url, method: params.method, lang: params.lang, ...params.custom })
+                }`,
+            paymentId,
         };
     }
-
     /**
      * Раскрытие сервера (вебхука) и принятие платежей.
-     * @param {number} port Порт на котором создать вебхук.
-     * @param {function} handler Функция которая выполниться при переводе после проверки подписи.
+     * @param {number} port Порт, на котором создать вебхук. Обязателен
+     * @param {string} path Путь, на котором будет доступен вебхук.
      */
-    async createWebhook(port: number, handler: Function, path: "/") {
+    async createWebhook(port: number, path?: string) {
         fastify.addContentTypeParser("*", function (req, body, done) {
             var data = "";
             body.on("data", (chunk) => {
@@ -90,14 +95,13 @@ export class PAYOK {
                 done(null, parse(body.toString()));
             }
         );
-        fastify.post(path, async (req: any, res) => {
-            req.body = Object.assign({}, req.body);
-            if (req.body.sign !== this.generateSignature(req.body))
+        fastify.post(path || "/", async (req: any, res) => {
+            if (req.body?.sign !== this.generateSignature(req.body))
                 return res.status(400).send("NO");
             res.status(200).send("OK");
-            await handler(req.body);
+            this.events.emit("payment", req.body);
         });
-        return await fastify.listen({ port, host: "::" });
+        return fastify.listen({ port, host: "::" });
     }
 }
 export * from "./types";
