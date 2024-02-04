@@ -1,17 +1,18 @@
 import Fastify from "fastify";
 const fastify = Fastify();
-import { createHash, randomBytes } from "crypto";
 import EventEmitter from "events";
-import { parse, stringify } from "qs";
+import { createHash, randomUUID } from "node:crypto";
+import { parse, stringify } from "node:querystring";
 import { API } from "./api";
-import { IGetPaymentLink, IPaymentHandler } from "./types";
+import { IGetPaymentLink } from "./types";
+
 class Emitter extends EventEmitter {}
+
 export class PAYOK {
 	apiId: number;
 	apiKey: string;
 	secretKey: string;
 	shop: number;
-	cache: Map<any, any>;
 	api: API;
 	events: Emitter;
 	/**
@@ -33,11 +34,14 @@ export class PAYOK {
 		this.secretKey = params.secretKey;
 		this.shop = params.shop;
 		this.events = new Emitter();
-		this.cache = new Map();
 		this.api = new API(params);
 	}
-	generateSignature(params: any, type?: "paymentLink") {
-		return type == "paymentLink"
+
+	generateSignature(
+		params: IGetPaymentLink & { payment: string; payment_id?: string },
+		type?: "paymentLink",
+	) {
+		return type === "paymentLink"
 			? createHash("md5")
 					.update(
 						`${params.amount}|${params.payment}|${this.shop}|${
@@ -53,6 +57,7 @@ export class PAYOK {
 					)
 					.digest("hex");
 	}
+
 	/**
 	 * Создание ссылки на форму оплаты
 	 * @param {float} params.amount Сумма заказа. Обязателен.
@@ -68,7 +73,8 @@ export class PAYOK {
 	 *
 	 */
 	getPaymentLink(params: IGetPaymentLink) {
-		const paymentId = params.payment || generateUUID();
+		const paymentId = params.payment || randomUUID();
+
 		return {
 			payUrl: `https://payok.io/pay?${stringify({
 				sign: this.generateSignature(
@@ -89,6 +95,7 @@ export class PAYOK {
 			paymentId,
 		};
 	}
+
 	/**
 	 * Раскрытие сервера (вебхука) и принятие платежей.
 	 * @param {number} port Порт, на котором создать вебхук. Обязателен
@@ -96,7 +103,7 @@ export class PAYOK {
 	 */
 	async createWebhook(port: number, path?: string) {
 		fastify.addContentTypeParser("*", (req, body, done) => {
-			var data = "";
+			let data = "";
 			body.on("data", (chunk) => {
 				data += chunk;
 			});
@@ -107,38 +114,19 @@ export class PAYOK {
 		fastify.addContentTypeParser(
 			"application/x-www-form-urlencoded",
 			{ parseAs: "buffer", bodyLimit: 1048576 },
-			(req, body, done) => {
+			(_, body, done) => {
 				done(null, parse(body.toString()));
 			},
 		);
-		fastify.post(path || "/", async (req: any, res) => {
-			if (req.body?.sign !== this.generateSignature(req.body))
+		fastify.post<{ Body: { sign: string } }>(path || "/", async (req, res) => {
+			// biome-ignore lint/suspicious/noExplicitAny: API IS BAD DAMN
+			if (req.body?.sign !== this.generateSignature(req.body as any))
 				return res.status(400).send("NO");
-			res.status(200).send("OK");
+
+			res.send("OK");
 			this.events.emit("payment", req.body);
 		});
 		return fastify.listen({ port, host: "::" });
 	}
 }
 export * from "./types";
-const cache = new Map<number, string>();
-function byteToString(byte: number): string {
-	const cached = cache.get(byte);
-	if (typeof cached === "string") return cached;
-
-	const value = byte.toString(16).padStart(2, "0");
-	cache.set(byte, value);
-	return value;
-}
-export function generateUUID(): string {
-	const bytes = randomBytes(16);
-
-	bytes[6] = (bytes[6] & 0x0f) | 0x40;
-	bytes[8] = (bytes[8] & 0x3f) | 0x80;
-
-	const plain = Array.from(bytes)
-		.map((byte) => byteToString(byte))
-		.join("");
-
-	return plain.slice(0, 5) + "-" + plain.slice(4, 8) + "-" + plain.slice(8, 13);
-}

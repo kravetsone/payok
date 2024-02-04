@@ -1,13 +1,24 @@
-import axios, { Axios } from "axios";
-import { parse, stringify } from "qs";
-import { ICreatePayout, IGetPayout, IGetTransaction } from "./types";
+import { stringify } from "node:querystring";
+import {
+	BalanceResponse,
+	CreatePayoutResponse,
+	ICreatePayout,
+	IGetPayout,
+	IGetTransactionParams,
+	Payout,
+	PayoutRawResponse,
+	Transaction,
+	TransactionRawResponse,
+} from "./types";
+
+const BASE_URL = "https://payok.io/api";
 
 export class API {
 	apiId: number;
 	apiKey: string;
 	secretKey: string;
 	shop: number;
-	request: Axios;
+
 	constructor(params: {
 		apiId: number;
 		apiKey: string;
@@ -18,48 +29,51 @@ export class API {
 		this.apiKey = params.apiKey;
 		this.secretKey = params.secretKey;
 		this.shop = params.shop;
-		this.request = new Axios({
-			baseURL: "https://payok.io/api",
+	}
+
+	// biome-ignore lint/suspicious/noExplicitAny: <explanation>
+	private async request<T>(path: string, params: Record<string, any> = {}) {
+		const res = await fetch(BASE_URL + path, {
 			headers: {
 				"User-Agent": "kravetsone/payok",
 				"Content-type": "application/x-www-form-urlencoded",
 				Accept: "application/json",
 			},
-			transformRequest: [
-				(data, headers) =>
-					stringify(
-						Object.assign(
-							{
-								API_ID: params.apiId,
-								API_KEY: params.apiKey,
-								shop: params.shop,
-							},
-							{ ...(data || {}) },
-						),
-					),
-			],
+			body: stringify({
+				...params,
+				API_ID: params.apiId,
+				API_KEY: params.apiKey,
+				shop: params.shop,
+			}),
 		});
-		this.request.interceptors.response.use((response) => {
-			if (response.data.status == "error") return Promise.reject(response.data);
-			return response;
-		});
+
+		const data = await res.json();
+		if (!res.ok || data.status === "error") throw new Error();
+
+		return data as T;
 	}
+
 	/**
 	 * [Получение баланса аккаунта.](https://payok.io/cabinet/documentation/doc_api_balance)
-	 *
 	 */
 	async getBalance() {
-		return this.request.post("/balance").then((response) => response.data);
+		return this.request<BalanceResponse>("/balance");
 	}
 	/**
 	 * [Получение списка транзакций.](https://payok.io/cabinet/documentation/doc_api_transaction)
 	 * @param {number} params.payment ID платежа в вашей системе.
 	 * @param {number} params.offset Отступ, пропуск указанного количества строк.
 	 */
-	async getTransactions(params: IGetTransaction) {
-		return this.request
-			.post("/transaction", params)
-			.then((response) => response.data);
+	async getTransactions(params: IGetTransactionParams) {
+		const data = await this.request<TransactionRawResponse>(
+			"/transaction",
+			params,
+		);
+
+		// Damn...
+		return Object.keys(data)
+			.filter((x) => x !== "status")
+			.map((x) => ({ ...data[x], id: x })) as Transaction[];
 	}
 	/**
 	 * [Получение списка транзакций.](https://payok.io/cabinet/documentation/doc_api_payout)
@@ -67,9 +81,12 @@ export class API {
 	 * @param {number} params.offset Отступ, пропуск указанного количества строк.
 	 */
 	async getPayouts(params: IGetPayout) {
-		return this.request
-			.post("/payout", params)
-			.then((response) => response.data);
+		const data = await this.request<PayoutRawResponse>("/payout", params);
+
+		// Damn...
+		return Object.keys(data)
+			.filter((x) => x !== "status")
+			.map((x) => ({ ...data[x], id: x })) as Payout[];
 	}
 	/**
 	 * [Создание выплаты.](https://payok.io/cabinet/documentation/doc_api_payout_create)
@@ -80,8 +97,6 @@ export class API {
 	 * @param {number} params.webhook_url URL вебхука для отправки статуса выплаты.
 	 */
 	async createPayout(params: ICreatePayout) {
-		return this.request
-			.post("/payout_create", params)
-			.then((response) => response.data);
+		return this.request<CreatePayoutResponse>("/payout_create", params);
 	}
 }

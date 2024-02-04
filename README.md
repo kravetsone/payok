@@ -25,7 +25,7 @@
 
 -   **используя `npm`**
     ```shell
-    npm i payok
+    npm install payok
     ```
 -   **используя `Yarn`**
     ```shell
@@ -35,11 +35,16 @@
     ```shell
     pnpm add payok
     ```
+-   **используя `bun`**
+    ```shell
+    bun install payok
+    ```
 
 # 🛠️ Использование
 
 ```js
-const { PAYOK } = require("payok");
+import { PAYOK } from "payok";
+
 const payok = new PAYOK({
     apiId: 1,
     apiKey: "yourApiKey",
@@ -60,14 +65,13 @@ const payok = new PAYOK({
 ---
 
 ```js
-const link = payok
-    .getPaymentLink({
-        amount: 10,
-        desc: "Описание вашего товара",
-        success_url: `https://github.com/kravetsone/payok`,
-        email: "email@gmail.ru",
-        custom: {id: 123456},
-    });
+const link = payok.getPaymentLink({
+    amount: 10,
+    desc: "Описание вашего товара",
+    success_url: `https://github.com/kravetsone/payok`,
+    email: "email@gmail.ru",
+    custom: { id: 123456 },
+});
 console.log(link); // { payUrl: "https://payok.io/pay?...", paymentId: "98dd5-51e1-a0644"}
 ```
 
@@ -104,17 +108,17 @@ payok.events.on("payment", (payment) => {
             sign: 'b7453a35683171d235dfb13a16b61f41',
             email: 'email@gmail.ru',
             date: '11.06.2022 12:13:15',
-            method: 'Qiwi', 
-            custom: { id: '123456' } 
+            method: 'Qiwi',
+            custom: { id: '123456' }
         }*/
     });
 });
 ```
 
-| Параметр | Тип      | Описание                                         | Обязательный |
-| -------- | -------- | ------------------------------------------------ | ------------ |
-| port     | number   | Порт на котором вы хотите раскрыть вебхук        | +            |
-| path     | string   | Путь по которому будет доступен вебхук           | -            |
+| Параметр | Тип    | Описание                                  | Обязательный |
+| -------- | ------ | ----------------------------------------- | ------------ |
+| port     | number | Порт на котором вы хотите раскрыть вебхук | +            |
+| path     | string | Путь по которому будет доступен вебхук    | -            |
 
 ### 💰 [Получение баланса](https://payok.io/cabinet/documentation/doc_api_balance)
 
@@ -135,10 +139,8 @@ payok.api.getBalance().then((res) => {
 ```js
 payok.api.getTransactions({ offset: 1 }).then((res) => {
     console.log(res);
-    /*{
-        {
-            "status": "success"
-            "1": {
+    /*[{
+                "id": "1",
                 "transaction": 10000,
                 "email": "example@ex.com",
                 "amount": "1065",
@@ -156,9 +158,7 @@ payok.api.getTransactions({ offset: 1 }).then((res) => {
                 "custom_fields": null
                 "webhook_status": 1
                 "webhook_amount": 1
-            }
-        }
-    }*/
+            }]*/
 });
 ```
 
@@ -174,10 +174,8 @@ payok.api.getTransactions({ offset: 1 }).then((res) => {
 ```js
 payok.api.getPayouts({ offset: 1 }).then((res) => {
     console.log(res);
-    /*{
-        {
-            "status": "success"
-            "1": {
+    /*[{
+                "id": "1",
                 "payout": 10000,
                 "method": "card",
                 "reciever": "5000400030002000",
@@ -189,9 +187,7 @@ payok.api.getPayouts({ offset: 1 }).then((res) => {
                 "date_create": "26.09.2021 20:40:07",
                 "date_pay": "26.09.2021 20:55:01",
                 "status": 0
-            }
-        }
-    }*/
+            }]*/
 });
 ```
 
@@ -214,7 +210,7 @@ payok.api
     })
     .then((res) => {
         console.log(res);
-        /*{
+        /*
             {
                 "status":"success",
                 "remain_balance":"229.44",
@@ -231,21 +227,23 @@ payok.api
                     "payout_status_text": "WAIT"
                 }
             }
-        }*/
+        */
     });
 ```
 
-| Параметр       | Тип    | Описание                                                                | Обязательный |
-| -------------- | ------ | ----------------------------------------------------------------------- | ------------ |
-| amount         | number | Сумма выплаты                                                           | +            |
+| Параметр       | Тип    | Описание                                                                        | Обязательный |
+| -------------- | ------ | ------------------------------------------------------------------------------- | ------------ |
+| amount         | number | Сумма выплаты                                                                   | +            |
 | method         | string | [Способ выплаты](https://payok.io/cabinet/documentation/doc_api_payout_methods) | +            |
-| reciever       | string | Реквезиты на которые придёт выплата                                     | +            |
-| comission_type | string | Комиссия с баланса - `balance`, а если с выплаты - `payment`            | +            |
-| webhook_url    | string | URL вебхука для отправки статуса выплаты                                | -            |
+| reciever       | string | Реквезиты на которые придёт выплата                                             | +            |
+| comission_type | string | Комиссия с баланса - `balance`, а если с выплаты - `payment`                    | +            |
+| webhook_url    | string | URL вебхука для отправки статуса выплаты                                        | -            |
 
 > Если нашли ошибку, то создайте [ISSUES](https://github.com/kravetsone/payok/issues/new)
 
 ## Changelog:
+
+**2.0.0** - Избавился от Axios, qs, добавил типов для ответа и всякие разные improves (но API всё ещё плохое)
 
 **1.0.4** - Breaking Change. Поменяли систему событий. Добавили примеры и множество более скромных деяних. [Подробнее](https://github.com/kravetsone/payok/releases/tag/payok%401.0.4)
 
